@@ -1,7 +1,9 @@
 import asyncio
 
+from aiogram.methods import DeleteWebhook
+
 from expression import bot, dp
-from views import router 
+from views import router
 
 
 async def on_startup(bot):
@@ -12,12 +14,12 @@ async def on_shutdown(bot):
     print("бот лег")
 
 
-
 async def main():
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)
     dp.include_router(router)
-    await dp.start_polling(bot)
+    await bot(DeleteWebhook(drop_pending_updates=True))
+    await dp.start_polling(bot, skip_updates=True)
 
 
 if __name__ == "__main__":

@@ -74,6 +74,12 @@ class Categories(Base):
 
     products: Mapped["Products"] = relationship(back_populates="product_category")
 
+    def read_model(self):
+        return {
+            "id": self.id,
+            "category_name": self.category_name,
+        }
+
     def __str__(self):
         return self.category_name
 
