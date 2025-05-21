@@ -11,15 +11,20 @@ class CartsSQLAlchemyRepository:
         """Создание временной коризны пользователя"""
         with db_helper.get_session() as session:
             try:
-                user = session.scalar(
-                    select(Users).where(
-                        Users.telegram == chat_id,
-                    )
-                )
-                query = self.model(
+                # один из способов запроса
+
+                # user = session.scalar(
+                #     select(Users).where(
+                #         Users.telegram == chat_id,
+                #     )
+                # )     
+                user = session.query(Users).filter_by(
+                    telegram=chat_id,
+                ).first()
+                carts = self.model(
                     user_id=user.id,
                 )
-                session.add(query)
+                session.add(carts)
                 session.commit()
                 return True
             except Exception as err:

@@ -2,7 +2,7 @@ import asyncio
 
 from aiogram.methods import DeleteWebhook
 
-from expression import bot, dp
+from extensions import bot, dp
 from views import router
 
 

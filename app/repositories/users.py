@@ -17,22 +17,27 @@ class UsersSQLAlchemyRepository:
                 )
                 sessiion.add(query)
                 sessiion.commit()
-                return False
+                return True
             except Exception as err:
                 print(err)
                 sessiion.rollback()
-                return True
+                return False
 
     def add_phone_user(self, telegram: int, phone: str):
         """Дополняем данные пользователя телефонным номером"""
         with db_helper.get_session() as session:
-            query = (
-                update(self.model)
-                .where(self.model.telegram == telegram)
-                .values(
-                    phone=phone,
-                )
+            # Один из способов запроса
+
+            # query = (
+            #     update(self.model)
+            #     .where(self.model.telegram == telegram)
+            #     .values(
+            #         phone=phone,
+            #     )
+            # )
+
+            session.query(self.model).filter(self.model.telegram == telegram).update(
+                {self.model.phone: phone}
             )
-            session.execute(query)
+
             session.commit()
-            

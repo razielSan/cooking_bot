@@ -15,3 +15,35 @@ def share_phone_button():
         ],
     )
     return keyboard
+
+
+def generate_main_menu():
+    """ Кнопки основного меню """
+    keyboard = ReplyKeyboardMarkup(
+        resize_keyboard=True,
+        keyboard=[
+            [
+                KeyboardButton(text="✅ Сделать заказ"),
+            ],
+            [
+                KeyboardButton(text="📓 История"),
+                KeyboardButton(text="🚃 Корзина"),
+                KeyboardButton(text="🔨 Настройки"),
+            ]
+        ]
+    )
+
+    return keyboard
+
+
+def back_to_main_menu():
+    """ Кнопка главного меню """
+    keyboard = ReplyKeyboardMarkup(
+        resize_keyboard=True,
+        keyboard=[
+            [
+                KeyboardButton(text="Главное меню"),
+            ],
+        ]
+    )
+    return keyboard
