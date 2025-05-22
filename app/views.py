@@ -1,11 +1,12 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 
 from repositories.users import UsersSQLAlchemyRepository
 from repositories.carts import CartsSQLAlchemyRepository
 from repositories.categories import CategoriesSQLAlchemyRepository
 from keyboards.reply import share_phone_button, back_to_main_menu
+from keyboards.inline import generate_category_menu
 from functions import get_user_register, show_main_menu
 from extensions import bot
 
@@ -54,9 +55,32 @@ async def make_order(message: Message):
         text="Погнали",
         reply_markup=back_to_main_menu(),
     )
-    # await message.answer(
-    #     text="Выберите категорию",
-    #     reply_markup="",
-    # )
+    await message.answer(
+        text="Выберите категорию",
+        reply_markup=generate_category_menu(),
+    )
 
 
+@router.message(F.text.regexp(r"^Г[а-я]+ м[а-я]{3}"))
+async def return_to_main_menu(message: Message):
+    """Реакция на кнопку главное меню"""
+    await bot.delete_message(
+        chat_id=message.chat.id,
+        message_id=message.message_id - 1,
+    )
+
+    await show_main_menu(message)
+
+
+@router.callback_query(F.data.startswith("category_"))
+async def show_product_button(call: CallbackQuery):
+    """" Показ всех продуктов выбранной категории """
+    chat_id = call.message.chat.id
+    category_id = int(call.data.split("_")[-1])
+    message_id = call.message.message_id
+    await bot.edit_message_text(
+        text="Выберите продукт",
+        chat_id=chat_id,
+        message_id=message_id,
+        reply_markup=show_products_by_category(category_id),
+    )
