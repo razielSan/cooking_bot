@@ -6,7 +6,7 @@ from repositories.users import UsersSQLAlchemyRepository
 from repositories.carts import CartsSQLAlchemyRepository
 from repositories.categories import CategoriesSQLAlchemyRepository
 from keyboards.reply import share_phone_button, back_to_main_menu
-from keyboards.inline import generate_category_menu
+from keyboards.inline import generate_category_menu, show_product_by_category
 from functions import get_user_register, show_main_menu
 from extensions import bot
 
@@ -82,5 +82,23 @@ async def show_product_button(call: CallbackQuery):
         text="Выберите продукт",
         chat_id=chat_id,
         message_id=message_id,
-        reply_markup=show_products_by_category(category_id),
+        reply_markup=show_product_by_category(category_id),
     )
+
+@router.callback_query(F.data == "return_to_category")
+async def return_to_category(call: CallbackQuery):
+    """ Возврат к выбору категорий продуктов """ 
+    chat_id = call.message.chat.id
+    mesage_id = call.message.message_id
+
+    await bot.edit_message_text(
+        chat_id=chat_id,
+        message_id=mesage_id,
+        text="Выберите категорию",
+        reply_markup=generate_category_menu(),
+    )
+
+@router.callback_query(F.data.text.startswith("product_"))
+async def get_product(call: CallbackQuery):
+    """ Отображение информациии о продукте """
+    product_id = int(call.data.split("_")[-1])
