@@ -1,6 +1,6 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, FSInputFile
 
 from repositories.users import UsersSQLAlchemyRepository
 from repositories.carts import CartsSQLAlchemyRepository
@@ -117,7 +117,25 @@ async def show_product_detail(call: CallbackQuery):
     )
 
     if user_cart_id := CartsSQLAlchemyRepository().get_user_cart(chat_id=chat_id):
-        print(user_cart_id, "-" * 25)
+        CartsSQLAlchemyRepository().update_to_cart(
+            price=product.price,
+            cart_id=user_cart_id,
+        )
+
+        text = (
+            f"<b>{product.product_name}</b>\n\n"
+            f"<b>Ингридиенты:</b>\n"
+            f"{product.description}\n"
+            f"<b>Цена</b>: {product.price} сумм"
+        )
+
+        await bot.send_photo(
+            chat_id=chat_id,
+            photo=FSInputFile(path=product.image),
+            caption=text,
+            parse_mode="HTML",
+        )
+
     else:
         await bot.send_message(
             chat_id=chat_id,
