@@ -5,6 +5,7 @@ from aiogram.types import CallbackQuery, Message
 from repositories.users import UsersSQLAlchemyRepository
 from repositories.carts import CartsSQLAlchemyRepository
 from repositories.categories import CategoriesSQLAlchemyRepository
+from repositories.products import ProductsSQLAlchemyRepository
 from keyboards.reply import share_phone_button, back_to_main_menu
 from keyboards.inline import generate_category_menu, show_product_by_category
 from functions import get_user_register, show_main_menu
@@ -74,7 +75,7 @@ async def return_to_main_menu(message: Message):
 
 @router.callback_query(F.data.startswith("category_"))
 async def show_product_button(call: CallbackQuery):
-    """" Показ всех продуктов выбранной категории """
+    """ " Показ всех продуктов выбранной категории"""
     chat_id = call.message.chat.id
     category_id = int(call.data.split("_")[-1])
     message_id = call.message.message_id
@@ -85,9 +86,10 @@ async def show_product_button(call: CallbackQuery):
         reply_markup=show_product_by_category(category_id),
     )
 
+
 @router.callback_query(F.data == "return_to_category")
 async def return_to_category(call: CallbackQuery):
-    """ Возврат к выбору категорий продуктов """ 
+    """Возврат к выбору категорий продуктов"""
     chat_id = call.message.chat.id
     mesage_id = call.message.message_id
 
@@ -98,7 +100,27 @@ async def return_to_category(call: CallbackQuery):
         reply_markup=generate_category_menu(),
     )
 
-@router.callback_query(F.data.text.startswith("product_"))
-async def get_product(call: CallbackQuery):
-    """ Отображение информациии о продукте """
+
+@router.callback_query(F.data.contains("product_"))
+async def show_product_detail(call: CallbackQuery):
+    """Отображение информациии о продукте"""
+    chat_id = call.message.chat.id
+    message_id = call.message.message_id
     product_id = int(call.data.split("_")[-1])
+    product = ProductsSQLAlchemyRepository().get_product_by_id(
+        product_id=product_id,
+    )
+
+    await bot.delete_message(
+        chat_id=chat_id,
+        message_id=message_id,
+    )
+
+    if user_cart_id := CartsSQLAlchemyRepository().get_user_cart(chat_id=chat_id):
+        print(user_cart_id, "-" * 25)
+    else:
+        await bot.send_message(
+            chat_id=chat_id,
+            text="К сожалению у нас нет вашего контакта",
+            reply_markup=share_phone_button(),
+        )

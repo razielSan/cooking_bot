@@ -39,5 +39,6 @@ class UsersSQLAlchemyRepository:
             session.query(self.model).filter(self.model.telegram == telegram).update(
                 {self.model.phone: phone}
             )
-
             session.commit()
+
+
