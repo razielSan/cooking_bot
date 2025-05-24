@@ -37,21 +37,21 @@ class CartsSQLAlchemyRepository:
                 return False
 
     def get_user_cart(self, chat_id: int):
-        """Получаем id корзины по связанной таблице Users"""
+        """Получаем корзину по связанной таблице Users"""
         with db_helper.get_session() as session:
             # users = session.query(Users).filter_by(telegram=chat_id).first()
             # carts_id = users.carts.id # запрос через relationship
 
             query = (
-                select(self.model.id)
+                select(self.model)
                 .join(Users)
                 .where(
                     Users.telegram == chat_id,
                 )
             )
 
-            carts_id = session.scalar(query)
-            return carts_id
+            carts = session.scalar(query)
+            return carts
 
     def update_to_cart(self, price: DECIMAL, cart_id: int, quantity=1):
         """Обновление данных временной корзины"""

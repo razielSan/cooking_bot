@@ -6,8 +6,16 @@ from repositories.users import UsersSQLAlchemyRepository
 from repositories.carts import CartsSQLAlchemyRepository
 from repositories.categories import CategoriesSQLAlchemyRepository
 from repositories.products import ProductsSQLAlchemyRepository
-from keyboards.reply import share_phone_button, back_to_main_menu
-from keyboards.inline import generate_category_menu, show_product_by_category
+from keyboards.reply import (
+    share_phone_button,
+    back_to_main_menu,
+    back_arrow_button,
+)
+from keyboards.inline import (
+    generate_category_menu,
+    show_product_by_category,
+    generate_constructor_button,
+)
 from functions import get_user_register, show_main_menu
 from extensions import bot
 
@@ -116,10 +124,10 @@ async def show_product_detail(call: CallbackQuery):
         message_id=message_id,
     )
 
-    if user_cart_id := CartsSQLAlchemyRepository().get_user_cart(chat_id=chat_id):
+    if user_cart := CartsSQLAlchemyRepository().get_user_cart(chat_id=chat_id):
         CartsSQLAlchemyRepository().update_to_cart(
             price=product.price,
-            cart_id=user_cart_id,
+            cart_id=user_cart.id,
         )
 
         text = (
@@ -129,11 +137,24 @@ async def show_product_detail(call: CallbackQuery):
             f"<b>Цена</b>: {product.price} сумм"
         )
 
+
+
         await bot.send_photo(
             chat_id=chat_id,
             photo=FSInputFile(path=product.image),
             caption=text,
             parse_mode="HTML",
+        )
+        await bot.send_message(
+            text="Выберите количество товара",
+            chat_id=chat_id,
+            reply_markup=generate_constructor_button(),
+        )
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text="Вернуться назад",
+            reply_markup=back_arrow_button(),
         )
 
     else:
@@ -142,3 +163,23 @@ async def show_product_detail(call: CallbackQuery):
             text="К сожалению у нас нет вашего контакта",
             reply_markup=share_phone_button(),
         )
+
+
+@router.message(F.text == "👈 Назад")
+async def return_to_category_menu(message: Message):
+    """ Назад к выбору продукта по категории """
+    chat_id = message.chat.id
+    message_id = message.message_id
+    await bot.delete_message(
+        chat_id=chat_id,
+        message_id=message_id - 3,
+    )
+
+    await make_order(message)
+
+
+@router.callback_query(F.data.contains("action "))
+async def constructor_change(call: CallbackQuery):
+    """ Логика конструктора """
+    chat_id = call.from_user.id
+    message_id = call.message.message_id

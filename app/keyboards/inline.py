@@ -40,3 +40,28 @@ def show_product_by_category(category_id: int):
         )
     )
     return inline_kb.as_markup()
+
+
+def generate_constructor_button(quantity=1):
+    """Кнопки выбора количества продуктов"""
+    inline_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="👎 -1", callback_data="action -"),
+                InlineKeyboardButton(text=str(quantity), callback_data="quantity"),
+                InlineKeyboardButton(text="👍 +1", callback_data="action +"),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🗑 Добавить в корзину", callback_data="Добавить в корзину"
+                )
+            ],
+        ]
+    )
+
+    return inline_kb
+    # inline_kb = InlineKeyboardBuilder()
+    # inline_kb.button(text="👎 -1", callback_data="ProductsQuantity_-1")
+    # inline_kb.button(text="1", callback_data="quantity")
+    # inline_kb.button(text="👍 +1", callback_data="ProductsQuantity_1")
+    # return inline_kb.as_markup()

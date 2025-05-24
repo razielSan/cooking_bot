@@ -47,3 +47,16 @@ def back_to_main_menu():
         ]
     )
     return keyboard
+
+
+def back_arrow_button():
+    """ Кнопка назад """
+    reply_kb = ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text="👈 Назад")
+            ]
+        ]
+    )
+
+    return reply_kb
