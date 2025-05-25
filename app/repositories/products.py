@@ -29,3 +29,8 @@ class ProductsSQLAlchemyRepository:
                 .first()
             )
             return product
+
+    def get_product_by_data(self, **kwargs):
+        with db_helper.get_session() as session:
+            product = session.query(Products).filter_by(**kwargs).first()
+            return product

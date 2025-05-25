@@ -29,3 +29,14 @@ async def get_user_register(message: Message):
     else:
         await message.answer("Авторизация прошла успешно")
         await show_main_menu(message)
+
+
+def get_text_for_product(price: int, product_name: str, description: str):
+    """ Возвращает описание продукта"""
+    text = (
+        f"<b>{product_name}</b>\n\n"
+        f"<b>Ингридиенты:</b>\n"
+        f"{description}\n"
+        f"<b>Цена</b>: {price} сумм"
+    )
+    return text

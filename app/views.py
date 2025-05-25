@@ -1,6 +1,7 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart
-from aiogram.types import CallbackQuery, Message, FSInputFile
+from aiogram.types import CallbackQuery, Message, FSInputFile, InputMediaPhoto
+from aiogram.exceptions import TelegramBadRequest
 
 from repositories.users import UsersSQLAlchemyRepository
 from repositories.carts import CartsSQLAlchemyRepository
@@ -16,8 +17,9 @@ from keyboards.inline import (
     show_product_by_category,
     generate_constructor_button,
 )
-from functions import get_user_register, show_main_menu
+from functions import get_user_register, show_main_menu, get_text_for_product
 from extensions import bot
+from database.db_helper import db_helper
 
 
 router = Router()
@@ -115,8 +117,8 @@ async def show_product_detail(call: CallbackQuery):
     chat_id = call.message.chat.id
     message_id = call.message.message_id
     product_id = int(call.data.split("_")[-1])
-    product = ProductsSQLAlchemyRepository().get_product_by_id(
-        product_id=product_id,
+    product = ProductsSQLAlchemyRepository().get_product_by_data(
+        id=product_id,
     )
 
     await bot.delete_message(
@@ -130,26 +132,26 @@ async def show_product_detail(call: CallbackQuery):
             cart_id=user_cart.id,
         )
 
-        text = (
-            f"<b>{product.product_name}</b>\n\n"
-            f"<b>Ингридиенты:</b>\n"
-            f"{product.description}\n"
-            f"<b>Цена</b>: {product.price} сумм"
-        )
-
-
-
         await bot.send_photo(
             chat_id=chat_id,
             photo=FSInputFile(path=product.image),
-            caption=text,
+            caption=get_text_for_product(
+                price=product.price,
+                product_name=product.product_name,
+                description=product.description,
+            ),
             parse_mode="HTML",
+            reply_markup=generate_constructor_button(
+                product_name=product.product_name,
+            )
         )
-        await bot.send_message(
-            text="Выберите количество товара",
-            chat_id=chat_id,
-            reply_markup=generate_constructor_button(),
-        )
+        # await bot.send_message(
+        #     text="Выберите количество товара",
+        #     chat_id=chat_id,
+        #     reply_markup=generate_constructor_button(
+        #         product_name=product.product_name,
+        #     ),
+        # )
 
         await bot.send_message(
             chat_id=chat_id,
@@ -167,19 +169,68 @@ async def show_product_detail(call: CallbackQuery):
 
 @router.message(F.text == "👈 Назад")
 async def return_to_category_menu(message: Message):
-    """ Назад к выбору продукта по категории """
+    """Назад к выбору продукта по категории"""
     chat_id = message.chat.id
     message_id = message.message_id
     await bot.delete_message(
         chat_id=chat_id,
-        message_id=message_id - 3,
+        message_id=message_id - 1,
     )
 
     await make_order(message)
 
 
-@router.callback_query(F.data.contains("action "))
+@router.callback_query(F.data.contains("action_"))
 async def constructor_change(call: CallbackQuery):
-    """ Логика конструктора """
+    """Логика конструктора"""
     chat_id = call.from_user.id
     message_id = call.message.message_id
+    _, action, product_name = call.data.split("_")
+    user_cart = CartsSQLAlchemyRepository().get_user_cart(chat_id=chat_id)
+    product = ProductsSQLAlchemyRepository().get_product_by_data(
+        product_name=product_name,
+    )
+    print(product_name, "2" * 20)
+    price = product.price
+
+    print(action)
+    if action == "+":
+        user_cart.total_products += 1
+    elif action == "-":
+        print("-" * 20)
+        if user_cart.total_products < 2:
+            print("Hello")
+            await call.answer("Меньше одного нельзя")
+        else:
+            user_cart.total_products -= 1
+    if user_cart.total_products >= 1:
+        price = price * user_cart.total_products
+        CartsSQLAlchemyRepository().update_to_cart(
+            price=price,
+            cart_id=user_cart.id,
+            quantity=user_cart.total_products,
+        )
+
+        try:
+            text = get_text_for_product(
+                price=price,
+                product_name=product.product_name,
+                description=product.description,
+            )
+
+            await bot.edit_message_media(
+                chat_id=chat_id,
+                message_id=message_id,
+                media=InputMediaPhoto(
+                    media=FSInputFile(path=product.image),
+                    caption=text,
+                    parse_mode="HTML",
+                ),
+                reply_markup=generate_constructor_button(
+                    quantity=user_cart.total_products,
+                    product_name=product.product_name,
+                ),
+            )
+
+        except TelegramBadRequest as err:
+            print(err)
