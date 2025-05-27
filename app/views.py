@@ -7,6 +7,8 @@ from repositories.users import UsersSQLAlchemyRepository
 from repositories.carts import CartsSQLAlchemyRepository
 from repositories.categories import CategoriesSQLAlchemyRepository
 from repositories.products import ProductsSQLAlchemyRepository
+from repositories.finally_carts import FinallyCartsSQLAlchemyRepository
+
 from keyboards.reply import (
     share_phone_button,
     back_to_main_menu,
@@ -17,7 +19,7 @@ from keyboards.inline import (
     show_product_by_category,
     generate_constructor_button,
 )
-from functions import get_user_register, show_main_menu, get_text_for_product
+from functions import get_user_register, show_main_menu, get_text_for_product, get_show_finally_carts
 from extensions import bot
 from database.db_helper import db_helper
 
@@ -58,9 +60,7 @@ async def update_user_info_finish_register(message: Message):
 @router.message(F.text == "✅ Сделать заказ")
 async def make_order(message: Message):
     """Реакция на кнопку сделать заказ"""
-    print(CategoriesSQLAlchemyRepository().get_all_categories())
     chat_id = message.chat.id
-    # TODO Получить id корзины пользователя
     await bot.send_message(
         chat_id=chat_id,
         text="Погнали",
@@ -68,7 +68,7 @@ async def make_order(message: Message):
     )
     await message.answer(
         text="Выберите категорию",
-        reply_markup=generate_category_menu(),
+        reply_markup=generate_category_menu(chat_id),
     )
 
 
@@ -107,7 +107,7 @@ async def return_to_category(call: CallbackQuery):
         chat_id=chat_id,
         message_id=mesage_id,
         text="Выберите категорию",
-        reply_markup=generate_category_menu(),
+        reply_markup=generate_category_menu(chat_id),
     )
 
 
@@ -143,16 +143,8 @@ async def show_product_detail(call: CallbackQuery):
             parse_mode="HTML",
             reply_markup=generate_constructor_button(
                 product_name=product.product_name,
-            )
+            ),
         )
-        # await bot.send_message(
-        #     text="Выберите количество товара",
-        #     chat_id=chat_id,
-        #     reply_markup=generate_constructor_button(
-        #         product_name=product.product_name,
-        #     ),
-        # )
-
         await bot.send_message(
             chat_id=chat_id,
             text="Вернуться назад",
@@ -190,16 +182,11 @@ async def constructor_change(call: CallbackQuery):
     product = ProductsSQLAlchemyRepository().get_product_by_data(
         product_name=product_name,
     )
-    print(product_name, "2" * 20)
     price = product.price
-
-    print(action)
     if action == "+":
         user_cart.total_products += 1
     elif action == "-":
-        print("-" * 20)
         if user_cart.total_products < 2:
-            print("Hello")
             await call.answer("Меньше одного нельзя")
         else:
             user_cart.total_products -= 1
@@ -234,3 +221,46 @@ async def constructor_change(call: CallbackQuery):
 
         except TelegramBadRequest as err:
             print(err)
+
+
+@router.callback_query(F.data.contains("Положить в корзину"))
+async def add_to_finally_carts(call: CallbackQuery):
+    """Добавление товара в корзину"""
+    chat_id = call.from_user.id
+    message_id = call.message.message_id
+
+    data = call.message.caption.split("\n")
+    product_name = data[0]
+    carts = CartsSQLAlchemyRepository().get_user_cart(chat_id=chat_id)
+
+    result = FinallyCartsSQLAlchemyRepository().insert_or_update_finally_carts(
+        product_name=product_name,
+        final_price=carts.total_price,
+        cart_id=carts.id,
+        quantity=carts.total_products,
+    )
+    await bot.delete_message(
+        chat_id=chat_id,
+        message_id=message_id,
+    )
+
+    if result:
+        await call.message.answer("Продукт успешно добавленн 😊")
+
+    else:
+        await call.answer("Товар в корзине обновлен")
+
+    await make_order(call.message)
+
+
+@router.callback_query(F.data == "Ваша корзина")
+async def get_show_carts(call: CallbackQuery):
+    """Отображение корзины пользователя"""
+    message_id = call.from_user.id
+    chat_id = call.from_user.id
+    context = get_show_finally_carts(chat_id=chat_id, user_text="Ваша корзина")
+    if context:
+        count, text, *_ = context
+        await call.message.answer(f"{text}", parse_mode="HTML")
+    else:
+        await call.message.answer("Корзина пуста")

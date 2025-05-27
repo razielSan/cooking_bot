@@ -3,13 +3,21 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from repositories.categories import CategoriesSQLAlchemyRepository
 from repositories.products import ProductsSQLAlchemyRepository
+from repositories.carts import CartsSQLAlchemyRepository
+from repositories.finally_carts import FinallyCartsSQLAlchemyRepository
 
 
-def generate_category_menu():
+def generate_category_menu(chat_id: int):
     categories = CategoriesSQLAlchemyRepository().get_all_categories()
+
+    price = FinallyCartsSQLAlchemyRepository().get_total_price_product_or_all_carts_product(
+        chat_id=chat_id,
+    )
+    total_price = price if price else 0
+
     inline_kb = InlineKeyboardBuilder()
     inline_kb.button(
-        text="Ваша корзина (TODO сум)",
+        text=f"Ваша корзина: ({total_price} сум)",
         callback_data="Ваша корзина",
     )
     for category in categories:
@@ -47,13 +55,18 @@ def generate_constructor_button(quantity=1, product_name=""):
     inline_kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="👎 -1", callback_data=f"action_-_{product_name}"),
+                InlineKeyboardButton(
+                    text="👎 -1", callback_data=f"action_-_{product_name}"
+                ),
                 InlineKeyboardButton(text=str(quantity), callback_data="quantity"),
-                InlineKeyboardButton(text="👍 +1", callback_data=f"action_+_{product_name}"),
+                InlineKeyboardButton(
+                    text="👍 +1", callback_data=f"action_+_{product_name}"
+                ),
             ],
             [
                 InlineKeyboardButton(
-                    text="🗑 Добавить в корзину", callback_data="Добавить в корзину"
+                    text="🗑 Положить в корзину",
+                    callback_data=f"Положить в корзину",
                 )
             ],
         ]
