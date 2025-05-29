@@ -1,9 +1,13 @@
-import asyncio
+﻿import asyncio
 
 from aiogram.methods import DeleteWebhook
 
 from extensions import bot, dp
 from views import router
+
+
+
+
 
 
 async def on_startup(bot):
