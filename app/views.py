@@ -1,6 +1,12 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart
-from aiogram.types import CallbackQuery, Message, FSInputFile, InputMediaPhoto
+from aiogram.types import (
+    CallbackQuery,
+    Message,
+    FSInputFile,
+    InputMediaPhoto,
+    LabeledPrice,
+)
 from aiogram.exceptions import TelegramBadRequest
 
 from repositories.users import UsersSQLAlchemyRepository
@@ -18,10 +24,17 @@ from keyboards.inline import (
     generate_category_menu,
     show_product_by_category,
     generate_constructor_button,
+    generate_finally_carts_products,
 )
-from functions import get_user_register, show_main_menu, get_text_for_product, get_show_finally_carts
+from functions import (
+    get_user_register,
+    show_main_menu,
+    get_text_for_product,
+    get_show_finally_carts,
+)
 from extensions import bot
 from database.db_helper import db_helper
+from config.settings import settings
 
 
 router = Router()
@@ -172,6 +185,32 @@ async def return_to_category_menu(message: Message):
     await make_order(message)
 
 
+@router.callback_query(F.data == "Ваша корзина")
+async def get_show_carts(call: CallbackQuery):
+    """Отображение корзины пользователя"""
+    message_id = call.message.message_id
+    chat_id = call.from_user.id
+    context = get_show_finally_carts(chat_id=chat_id, user_text="Ваша корзина")
+
+    await bot.delete_message(
+        chat_id=chat_id,
+        message_id=message_id,
+    )
+
+    if context:
+        list_product_name, count, text, *_, cart_id = context
+        await call.message.answer(
+            f"{text}",
+            parse_mode="HTML",
+            reply_markup=generate_finally_carts_products(
+                list_product_name=list_product_name,
+                cart_id=cart_id,
+            ),
+        )
+    else:
+        await call.message.answer("Корзина пуста")
+
+
 @router.callback_query(F.data.contains("action_"))
 async def constructor_change(call: CallbackQuery):
     """Логика конструктора"""
@@ -190,8 +229,9 @@ async def constructor_change(call: CallbackQuery):
             await call.answer("Меньше одного нельзя")
         else:
             user_cart.total_products -= 1
-    if user_cart.total_products >= 1:
+    if user_cart.total_products > 0:
         price = price * user_cart.total_products
+
         CartsSQLAlchemyRepository().update_to_cart(
             price=price,
             cart_id=user_cart.id,
@@ -253,14 +293,132 @@ async def add_to_finally_carts(call: CallbackQuery):
     await make_order(call.message)
 
 
-@router.callback_query(F.data == "Ваша корзина")
-async def get_show_carts(call: CallbackQuery):
-    """Отображение корзины пользователя"""
-    message_id = call.from_user.id
+@router.callback_query(F.data.contains("delete"))
+async def delete_for_cart_products(call: CallbackQuery):
+    """ Удаление продукта с финальной корзины """ ""
+    _, product_name, cart_id = call.data.split("_")
+    FinallyCartsSQLAlchemyRepository().delete_for_FinallyCarts_by_cart_id(
+        product_name=product_name,
+        cart_id=int(cart_id),
+    )
     chat_id = call.from_user.id
-    context = get_show_finally_carts(chat_id=chat_id, user_text="Ваша корзина")
-    if context:
-        count, text, *_ = context
-        await call.message.answer(f"{text}", parse_mode="HTML")
-    else:
+    message_id = call.message.message_id
+
+    context = get_show_finally_carts(
+        chat_id=chat_id,
+        user_text="Ваша корзина",
+    )
+
+    if not context:
+        await bot.delete_message(
+            chat_id=chat_id,
+            message_id=message_id,
+        )
         await call.message.answer("Корзина пуста")
+        await make_order(call.message)
+    else:
+        list_product_name, count, total_text, total_price, cart_id = context
+
+        await bot.answer_callback_query(callback_query_id=call.id, text="Товар удаленн")
+
+        await bot.edit_message_text(
+            text=total_text,
+            chat_id=chat_id,
+            message_id=message_id,
+            reply_markup=generate_finally_carts_products(
+                list_product_name=list_product_name,
+                cart_id=cart_id,
+            ),
+            parse_mode="HTML",
+        )
+
+
+@router.callback_query(F.data.contains("CartAction"))
+async def change_finalli_carts(call: CallbackQuery):
+    """Изменение количества товаров в финальной корзине"""
+    _, action, product_name = call.data.split("_")
+    message_id = call.message.message_id
+    chat_id = call.from_user.id
+
+    cart = CartsSQLAlchemyRepository().get_user_cart(chat_id=chat_id)
+    finally_cart = FinallyCartsSQLAlchemyRepository().get_finally_cart_by_product(
+        product_name=product_name,
+        cart_id=cart.id,
+    )
+
+    if action == "-":
+        if finally_cart.quantity == 1:
+            await call.answer("Меньше одного нельзя")
+        else:
+            finally_cart.quantity -= 1
+    elif action == "+":
+        finally_cart.quantity += 1
+
+    if finally_cart.quantity > 0:
+        product = ProductsSQLAlchemyRepository().get_product_by_data(
+            product_name=product_name,
+        )
+        finally_cart.final_price = product.price * finally_cart.quantity
+        FinallyCartsSQLAlchemyRepository().insert_or_update_finally_carts(
+            final_price=finally_cart.final_price,
+            quantity=finally_cart.quantity,
+            product_name=finally_cart.product_name,
+            cart_id=cart.id,
+        )
+
+        context = get_show_finally_carts(
+            chat_id=chat_id,
+            user_text="Ваша корзина",
+        )
+
+        list_product_name, count, total_text, total_price, cart_id = context
+
+        await bot.edit_message_text(
+            text=total_text,
+            chat_id=chat_id,
+            message_id=message_id,
+            reply_markup=generate_finally_carts_products(
+                list_product_name=list_product_name,
+                cart_id=cart.id,
+            ),
+            parse_mode="HTML",
+        )
+
+
+@router.callback_query(F.data == "payment")
+async def payment_for_the_order(call: CallbackQuery):
+    """Оплата заказа"""
+    chat_id = call.from_user.id
+    message_id = call.message.message_id
+
+    list_product_name, count, total_text, total_price, cart_id = get_show_finally_carts(
+        chat_id=chat_id,
+        user_text="Итоговый список для оплаты",
+        html=False,
+    )
+
+
+    total_text += "\nДоставка по городу 1000 сумм"
+    await bot.delete_message(
+        chat_id=chat_id,
+        message_id=message_id,
+    )
+
+    await bot.send_invoice(
+        chat_id=chat_id,
+        title="Ваш заказ",
+        description=total_text,
+        payload="bot-defined invoice payload",
+        provider_token=settings.PAYMENT_TOKEN,
+        currency="RUB",
+        prices=[
+            LabeledPrice(
+                label="Общая стоимость",
+                amount=int(total_price * 100),
+            ),
+            LabeledPrice(
+                label="Доставка",
+                amount=1000,
+            ),
+        ],
+    )

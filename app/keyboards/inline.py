@@ -10,8 +10,10 @@ from repositories.finally_carts import FinallyCartsSQLAlchemyRepository
 def generate_category_menu(chat_id: int):
     categories = CategoriesSQLAlchemyRepository().get_all_categories()
 
-    price = FinallyCartsSQLAlchemyRepository().get_total_price_product_or_all_carts_product(
-        chat_id=chat_id,
+    price = (
+        FinallyCartsSQLAlchemyRepository().get_total_price_product_or_all_carts_product(
+            chat_id=chat_id,
+        )
     )
     total_price = price if price else 0
 
@@ -78,3 +80,29 @@ def generate_constructor_button(quantity=1, product_name=""):
     # inline_kb.button(text="1", callback_data="quantity")
     # inline_kb.button(text="👍 +1", callback_data="ProductsQuantity_1")
     # return inline_kb.as_markup()
+
+
+def generate_finally_carts_products(list_product_name, cart_id: int):
+    """Отображение кнопок финальной корзины"""
+    inline_kb = InlineKeyboardBuilder()
+    len_list_product_name = len(list_product_name)
+    inline_kb.row(
+        InlineKeyboardButton(
+            text="☕ Оформить заказ",
+            callback_data="payment",
+        )
+    )
+    for product_name in list_product_name:
+        inline_kb.button(
+            text="➖",
+            callback_data=f"CartAction_-_{product_name}",
+        ),
+        inline_kb.button(
+            text=f"❌ {product_name}", callback_data=f"delete_{product_name}_{cart_id}"
+        ),
+        inline_kb.button(text="➕", callback_data=f"CartAction_+_{product_name}"),
+
+    total_list = [3 for _ in range(len_list_product_name)]
+    total_list.insert(0, 1)
+    inline_kb.adjust(*total_list)
+    return inline_kb.as_markup()

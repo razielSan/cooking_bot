@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     DB_PORT: int
     DB_NAME: str
     TOKEN: str
+    PAYMENT_TOKEN: str
 
     @property
     def get_url_postgres(self):

@@ -43,7 +43,10 @@ def get_text_for_product(price: int, product_name: str, description: str):
     return text
 
 
-def get_show_finally_carts(chat_id: int, user_text: str):
+def get_show_finally_carts(chat_id: int, user_text: str, html=True):
+    """ Возвращает список из имен продуктов, количество продуктов, содержимое корзины,
+        общую стоимость продуктов и cart_id пользователя
+    """
     list_all_cart_for_products = (
         FinallyCartsSQLAlchemyRepository().get_total_price_product_or_all_carts_product(
             chat_id=chat_id,
@@ -51,9 +54,12 @@ def get_show_finally_carts(chat_id: int, user_text: str):
         )
     )
     count = total_price = total_products = 0
+    list_product_name = []
     if list_all_cart_for_products:
-        total_text = f"<b>{user_text}</b>\n\n"
-        for product in list_all_cart_for_products:
+        list_cart_products = [(p.product_name, p) for p in list_all_cart_for_products]
+        list_cart_products.sort(key=lambda x: x[0])
+        total_text = f"<b>{user_text}</b>\n\n" if html else f"{user_text}\n\n"
+        for _, product in list_cart_products:
             count += 1
             total_price += product.final_price
             total_products += product.quantity
@@ -63,10 +69,13 @@ def get_show_finally_carts(chat_id: int, user_text: str):
                 f"Количество: {product.quantity}\nСтоимость: {product.final_price}\n\n"
             )
             total_text += text
+            list_product_name.append(product.product_name)
 
+        
         total_text += f"Общее количество продуктов: {total_products}\n"
         total_text += f"Общее cтоимость продуктов: {total_price}"
+        total_text += ""
 
         cart_id = list_all_cart_for_products[0].cart_id
-        return (count, total_text, total_price, cart_id)
+        return (list_product_name, count, total_text, total_price, cart_id)
     return None

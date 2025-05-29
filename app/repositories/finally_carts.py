@@ -59,9 +59,33 @@ class FinallyCartsSQLAlchemyRepository:
                 )
             )
 
-            finally_price = session.execute(query).fetchone()[0]
+            finally_price = session.execute(query).fetchone()
+            finally_price = finally_price[0] if finally_price else 0
             list_carts = session.scalars(query).all()
 
             result = list_carts if order else finally_price
 
             return result
+
+    def delete_for_FinallyCarts_by_cart_id(
+        self,
+        cart_id: int,
+        product_name: str,
+    ):
+        """Удалениe продуктов с финальной корзины по cart_id и product_name"""
+        with db_helper.get_session() as session:
+            session.query(self.model).filter_by(
+                product_name=product_name, cart_id=cart_id
+            ).delete()
+            session.commit()
+
+    def get_finally_cart_by_product(self, product_name: str, cart_id: int):
+        """ Возвращает финальную корзину пользователя с одним продуктом по 
+            product_name и cart_id
+        """
+        with db_helper.get_session() as session:
+            finally_cart = session.query(self.model).filter_by(
+                cart_id=cart_id, product_name=product_name
+            ).first()
+
+            return finally_cart
