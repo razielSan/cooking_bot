@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     DB_NAME: str
     TOKEN: str
     PAYMENT_TOKEN: str
+    MANAGER: int
 
     @property
     def get_url_postgres(self):

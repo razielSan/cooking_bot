@@ -41,4 +41,8 @@ class UsersSQLAlchemyRepository:
             )
             session.commit()
 
-
+    def get_user_info(self, chat_id: int):
+        """ " Полчение пользователя по chat_id"""
+        with db_helper.get_session() as session:
+            user = session.query(self.model).filter_by(telegram=chat_id).first()
+            return user

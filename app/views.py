@@ -88,10 +88,13 @@ async def make_order(message: Message):
 @router.message(F.text.regexp(r"^Г[а-я]+ м[а-я]{3}"))
 async def return_to_main_menu(message: Message):
     """Реакция на кнопку главное меню"""
-    await bot.delete_message(
-        chat_id=message.chat.id,
-        message_id=message.message_id - 1,
-    )
+    try:
+        await bot.delete_message(
+            chat_id=message.chat.id,
+            message_id=message.message_id - 1,
+        )
+    except TelegramBadRequest:
+        pass
 
     await show_main_menu(message)
 
@@ -297,7 +300,7 @@ async def add_to_finally_carts(call: CallbackQuery):
 async def delete_for_cart_products(call: CallbackQuery):
     """ Удаление продукта с финальной корзины """ ""
     _, product_name, cart_id = call.data.split("_")
-    FinallyCartsSQLAlchemyRepository().delete_for_FinallyCarts_by_cart_id(
+    FinallyCartsSQLAlchemyRepository().delete_for_product_by_FinallyCarts(
         product_name=product_name,
         cart_id=int(cart_id),
     )
@@ -397,7 +400,6 @@ async def payment_for_the_order(call: CallbackQuery):
         html=False,
     )
 
-
     total_text += "\nДоставка по городу 1000 сумм"
     await bot.delete_message(
         chat_id=chat_id,
@@ -410,7 +412,7 @@ async def payment_for_the_order(call: CallbackQuery):
         description=total_text,
         payload="bot-defined invoice payload",
         provider_token=settings.PAYMENT_TOKEN,
-        currency="RUB",
+        currency="UZS",
         prices=[
             LabeledPrice(
                 label="Общая стоимость",
@@ -421,4 +423,27 @@ async def payment_for_the_order(call: CallbackQuery):
                 amount=1000,
             ),
         ],
+    )
+
+    await bot.send_message(
+        chat_id=chat_id,
+        text="Заказ оплаченн",
+    )
+
+    FinallyCartsSQLAlchemyRepository().delete_for_all_products_by_cart_id(
+        cart_id=cart_id,
+    )
+
+    await sending_report_message(
+        chat_id=chat_id,
+        text=total_text,
+    )
+
+
+async def sending_report_message(chat_id: int, text: str):
+    user = UsersSQLAlchemyRepository().get_user_info(chat_id=chat_id)
+    text += f"\n\nИмя заказчика: {user.name}\nКонтактный номер: {user.phone}"
+    await bot.send_message(
+        chat_id=settings.MANAGER,
+        text=text,
     )

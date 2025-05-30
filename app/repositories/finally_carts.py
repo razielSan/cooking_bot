@@ -67,25 +67,33 @@ class FinallyCartsSQLAlchemyRepository:
 
             return result
 
-    def delete_for_FinallyCarts_by_cart_id(
+    def delete_for_product_by_FinallyCarts(
         self,
         cart_id: int,
         product_name: str,
     ):
-        """Удалениe продуктов с финальной корзины по cart_id и product_name"""
+        """Удалениe продукта с финальной корзины по cart_id и product_name"""
         with db_helper.get_session() as session:
             session.query(self.model).filter_by(
                 product_name=product_name, cart_id=cart_id
             ).delete()
             session.commit()
 
+    def delete_for_all_products_by_cart_id(self, cart_id: int):
+        """Удаление всех продуктов в FinallyCarts по cart_id"""
+        with db_helper.get_session() as session:
+            session.query(self.model).filter_by(cart_id=cart_id).delete()
+            session.commit()
+
     def get_finally_cart_by_product(self, product_name: str, cart_id: int):
-        """ Возвращает финальную корзину пользователя с одним продуктом по 
-            product_name и cart_id
+        """Возвращает финальную корзину пользователя с одним продуктом по
+        product_name и cart_id
         """
         with db_helper.get_session() as session:
-            finally_cart = session.query(self.model).filter_by(
-                cart_id=cart_id, product_name=product_name
-            ).first()
+            finally_cart = (
+                session.query(self.model)
+                .filter_by(cart_id=cart_id, product_name=product_name)
+                .first()
+            )
 
             return finally_cart
